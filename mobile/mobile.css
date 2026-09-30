@@ -48,7 +48,6 @@ html.m #s1 .m-hero > div:first-child { font-size: 11px !important; }
 html.m #s1 .m-hero .disp { font-size: 30px !important; text-wrap: balance; }
 html.m #s1 .m-hero > div:last-of-type { flex-wrap: wrap; gap: 10px !important; }
 html.m #s1 .m-hero .btn { height: 50px; padding: 0 18px; font-size: 13px; }
-html.m #arc-showcase { display: none !important; }
 html.m #s1 .sfan { translate: -360px -170px; scale: .6; }
 html.m #s1 .campcopy { bottom: 140px !important; }
 

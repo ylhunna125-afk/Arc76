@@ -2,7 +2,7 @@
  *
  *   node bake.mjs          -> writes ./dist
  *
- * dev.mjs applies the scroll fix, the framing fix and the showcase to the
+ * dev.mjs applies the scroll fix to the
  * HTTP RESPONSE, so the file on disk stays exactly what the design tool
  * exported. That is right for local work and useless for a static host,
  * which never runs dev.mjs. This writes those same changes into real
@@ -81,9 +81,7 @@ html = html.replace(RE_S1, (m, pre) => pre + S1_VH + 'vh');
 html = html.replace(RE_HTMLTAG, '<html data-descent-vh="' + DESCENT + '"$1');
 if (!html.includes('scroll-fix.js')) {
   html = html.replace('</body>',
-    '<link rel="stylesheet" href="/showcase.css">\n'
-    + '<script src="/scroll-fix.js" defer></script>\n'
-    + '<script src="/showcase.js" defer></script>\n'
+    '<script src="/scroll-fix.js" defer></script>\n'
     + '</body>');
 }
 
@@ -92,7 +90,6 @@ if (!html.includes('scroll-fix.js')) {
 const checks = [
   ['s1 height', new RegExp('id="s1"[^>]*?height:\\s*' + S1_VH + 'vh')],
   ['scroll-fix tag', /scroll-fix\.js/],
-  ['showcase tag', /showcase\.js/],
 ];
 const failed = checks.filter(([, re]) => !re.test(html)).map(([n]) => n);
 if (html === before) failed.push('nothing was rewritten at all');
@@ -115,7 +112,7 @@ if (!IN_PLACE) {
     copied++;
   }
 }
-for (const need of ['scroll-fix.js', 'showcase.js', 'showcase.css']) {
+for (const need of ['scroll-fix.js']) {
   if (!fs.existsSync(path.join(OUT, need))) {
     console.error('  BAKE FAILED: missing ' + need); process.exit(1);
   }
