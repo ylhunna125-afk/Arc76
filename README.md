@@ -26,6 +26,7 @@ Everything that must survive an export lives outside it:
 | File | What it does |
 |---|---|
 | `scroll-fix.js` | Snaps to section boundaries after the descent |
+| `mobile-lite.css` | Strips blur/backdrop-filter on phones. Without it iOS Safari kills the tab |
 | `perf.js` | Pauses off-screen scenes, thins the blizzard, drops oversized SVG filters on phones |
 | `base/`, `crate/`, `route/` | Redesigned sections 6, 4 and 5 |
 | `mobile/` | Portrait phone layout (full-bleed scenes, re-laid copy, two-page crate/route/base camp) |

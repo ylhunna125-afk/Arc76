@@ -1,0 +1,86 @@
+/* Arc76 — stop iOS Safari killing the tab.
+ *
+ * Symptom: "A problem repeatedly occurred" on iPhone. That is not a slow
+ * page, it is WebKit running out of memory and Safari giving up after
+ * retrying. Desktop is unaffected because it has orders of magnitude
+ * more headroom.
+ *
+ * Cause: the page carries 72 SVG filter references (67 feGaussianBlur,
+ * 6 feTurbulence), 19 backdrop-filters and 30 CSS blurs, spread over six
+ * full-screen scenes that are all in the DOM and all rendered at once.
+ * Every filtered or backdrop-filtered element needs its own offscreen
+ * buffer, and on an iPhone at devicePixelRatio 3 a single full-screen
+ * layer is about 11 MB. It does not take many before the tab is killed.
+ *
+ * This has to be CSS, and it has to be a stylesheet. perf.js does
+ * similar work but runs after first paint, which on a phone is already
+ * too late: the crash happens while the page is being rendered, before
+ * any script gets a turn.
+ *
+ * Presentation attributes lose to any CSS rule, so `filter: none` here
+ * overrides `filter="url(#blur)"` in the markup without touching it.
+ * Nothing is deleted and nothing is restructured, so a new export from
+ * the design tool keeps working.
+ *
+ * What it costs: on phones, soft glows become hard-edged and frosted
+ * panels become solid. Layout, copy, colour and every interaction are
+ * untouched. That is a fair trade for the page existing.
+ */
+
+@media (max-width: 900px), (pointer: coarse) {
+
+  /* The big one. 72 SVG filters, each allocating a buffer sized to the
+     element's bounding box, several of which are full-screen. */
+  [filter] { filter: none !important; }
+
+  /* Each backdrop-filter snapshots what is behind it into another
+     buffer, then blurs that. Among the most expensive things you can
+     ask a mobile GPU to do, and there are 19. */
+  * { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+
+  /* THE BIG ONE, measured. .fx-cloud holds 64 blurred spans totalling
+     6.95 megapixels of blurred area. At devicePixelRatio 3 that is about
+     62 megapixels of backing buffer, roughly 250 MB, for one decorative
+     mist layer. On its own that is enough to have Safari kill the tab.
+
+     It also sits OUTSIDE every .wrap, so perf.js's per-scene pausing
+     never touched it: it renders for the entire life of the page.
+
+     Hidden rather than unblurred, because a blur(8px) cloud with the
+     blur removed is a hard-edged grey blob, which looks worse than no
+     cloud at all. */
+  .fx-cloud { display: none !important; }
+
+  /* The rest of the blurred surface, measured rather than guessed:
+       .lay      1 element, 3.42 MPx  (four times the viewport, ~123 MB
+                 of buffer at DPR3, for a single atmospheric wash)
+       .fx-gust  30 elements, 1.62 MPx
+       .tfx      1 element, 0.33 MPx
+     Unblurred rather than hidden: these carry actual scene content, so
+     losing the blur costs softness, not the picture.
+     The blur sits on unclassed children inside these containers, not on
+     the containers themselves, so the descendant selectors are the ones
+     doing the work here. */
+  .lay, .fx-gust, .tfx, .crx-light, .crx-rig, .fx-streak,
+  .lay *, .fx-gust *, .tfx *, .crx-light *, .crx-rig *, .fx-streak *,
+  .mist, .glow, .haze, .fog, .bloom, .halo,
+  [class*="blur"], [class*="glow"], [class*="mist"], [class*="haze"] {
+    filter: none !important;
+  }
+
+  /* will-change promotes an element to its own layer permanently, even
+     when nothing is changing. Five of them, each holding a buffer for
+     the life of the page. Let the compositor decide instead. */
+  * { will-change: auto !important; }
+
+  /* Sub-pixel scaling on huge SVGs is expensive to rasterise and the
+     difference is invisible at this size. */
+  svg { shape-rendering: optimizeSpeed; }
+}
+
+/* Very small or very constrained phones: also drop the decorative
+   particle layers entirely. These are individually cheap but there are
+   hundreds, and on an older device the DOM alone is a real cost. */
+@media (max-width: 480px) and (pointer: coarse) {
+  .bz, .inflake, .spark, .drip, .flutter, .steam { display: none !important; }
+}

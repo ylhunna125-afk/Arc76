@@ -92,6 +92,7 @@ function fixScroll(html) {
   // hand the value to scroll-fix.js so the two cannot drift apart
   out = out.replace(RE_HTMLTAG, '<html data-descent-vh="' + DESCENT + '"$1');
   if (!out.includes('scroll-fix.js')) {
+    out = out.replace('</head>', '<link rel="stylesheet" href="/mobile-lite.css"></head>');
     out = out.replace('</body>', '<script src="/scroll-fix.js" defer></script><script src="/perf.js" defer></script>\n</body>');
   }
   return out;

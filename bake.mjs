@@ -88,12 +88,21 @@ for (const src of ['/scroll-fix.js', '/perf.js']) {
   html = html.replace('</body>', '<script src="' + src + '" defer></script>\n</body>');
 }
 
+/* mobile-lite must be a real stylesheet in <head>, not injected by a
+   script. The iOS crash happens while the page is first rendering, so
+   anything applied after load is too late to prevent it. Last in head
+   so it wins on equal specificity. */
+if (!html.includes('mobile-lite.css')) {
+  html = html.replace('</head>', '<link rel="stylesheet" href="/mobile-lite.css">\n</head>');
+}
+
 // a silently-unpatched build is worse than a failed one: it looks fine
 // until you scroll, on a URL you have already given people
 const checks = [
   ['s1 height', new RegExp('id="s1"[^>]*?height:\\s*' + S1_VH + 'vh')],
   ['scroll-fix tag', /scroll-fix\.js/],
   ['perf tag', /perf\.js/],
+  ['mobile-lite tag', /mobile-lite\.css/],
 ];
 const failed = checks.filter(([, re]) => !re.test(html)).map(([n]) => n);
 if (html === before) failed.push('nothing was rewritten at all');
@@ -116,7 +125,7 @@ if (!IN_PLACE) {
     copied++;
   }
 }
-for (const need of ['scroll-fix.js', 'perf.js']) {
+for (const need of ['scroll-fix.js', 'perf.js', 'mobile-lite.css']) {
   if (!fs.existsSync(path.join(OUT, need))) {
     console.error('  BAKE FAILED: missing ' + need); process.exit(1);
   }
