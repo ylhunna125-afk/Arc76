@@ -38,7 +38,7 @@
   ];
 
   const year = new Date().getFullYear();
-  const storeUrl = (typeof APP_STORE_URL !== 'undefined' ? APP_STORE_URL : 'https://apps.apple.com/app/id_YOUR_APP_ID');
+  const storeUrl = (typeof APP_STORE_URL !== 'undefined' ? APP_STORE_URL : 'https://apps.apple.com/app/id6794336316');
 
   function resizeSection() {
     const s6 = document.getElementById('s6');

@@ -17,6 +17,12 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.join(ROOT, 'dist');
 
+/* --in-place patches index.html in the repo instead of building dist/.
+   Railway deploys straight from the GitHub repo, so the repo has to BE
+   the deployable thing; dist/ is gitignored and Railway never sees it.
+   Idempotent: re-running it on an already-patched file changes nothing. */
+const IN_PLACE = process.argv.includes('--in-place');
+
 /* Kept in step with dev.mjs by hand. If you change one, change the other;
    the alternative is importing across them and making the dev server
    depend on the build script, which is worse. */
@@ -58,8 +64,10 @@ function copyRec(from, to) {
   }
 }
 
-fs.rmSync(DIST, { recursive: true, force: true });
-fs.mkdirSync(DIST, { recursive: true });
+if (!IN_PLACE) {
+  fs.rmSync(DIST, { recursive: true, force: true });
+  fs.mkdirSync(DIST, { recursive: true });
+}
 
 let html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const before = html;
@@ -95,16 +103,20 @@ if (failed.length) {
   process.exit(1);
 }
 
-fs.writeFileSync(path.join(DIST, 'index.html'), html);
+const OUT = IN_PLACE ? ROOT : DIST;
+
+fs.writeFileSync(path.join(OUT, 'index.html'), html);
 let copied = 0;
-for (const e of fs.readdirSync(ROOT, { withFileTypes: true })) {
-  if (isSkipped(e.name)) continue;
-  const src = path.join(ROOT, e.name), dst = path.join(DIST, e.name);
-  if (e.isDirectory()) copyRec(src, dst); else fs.copyFileSync(src, dst);
-  copied++;
+if (!IN_PLACE) {
+  for (const e of fs.readdirSync(ROOT, { withFileTypes: true })) {
+    if (isSkipped(e.name)) continue;
+    const src = path.join(ROOT, e.name), dst = path.join(DIST, e.name);
+    if (e.isDirectory()) copyRec(src, dst); else fs.copyFileSync(src, dst);
+    copied++;
+  }
 }
 for (const need of ['scroll-fix.js', 'showcase.js', 'showcase.css']) {
-  if (!fs.existsSync(path.join(DIST, need))) {
+  if (!fs.existsSync(path.join(OUT, need))) {
     console.error('  BAKE FAILED: missing ' + need); process.exit(1);
   }
 }
@@ -127,7 +139,7 @@ function fixLinks(dir) {
     fs.writeFileSync(f, out);
   }
 }
-fixLinks(DIST);
+fixLinks(OUT);
 
 const leftovers = [];
 (function scan(dir) {
@@ -137,7 +149,7 @@ const leftovers = [];
     if (!/\.(html|js|css)$/i.test(e.name)) continue;
     if (fs.readFileSync(f, 'utf8').includes('YOUR_APP_ID')) leftovers.push(e.name);
   }
-})(DIST);
+})(OUT);
 if (leftovers.length) {
   console.error('  BAKE FAILED: App Store placeholder survived in ' + leftovers.join(', '));
   process.exit(1);
@@ -145,7 +157,7 @@ if (leftovers.length) {
 
 // .app is HSTS-preloaded, so the browser refuses plain HTTP outright.
 // Cloudflare Pages serves HTTPS by default; this just pins the headers.
-fs.writeFileSync(path.join(DIST, '_headers'),
+if (!IN_PLACE) fs.writeFileSync(path.join(DIST, '_headers'),
 `/*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
@@ -156,6 +168,15 @@ const size = (d) => fs.readdirSync(d, { withFileTypes: true })
   .reduce((n, e) => n + (e.isDirectory() ? size(path.join(d, e.name))
     : fs.statSync(path.join(d, e.name)).size), 0);
 
-console.log('\n  baked -> ' + DIST);
-console.log('  ' + (size(DIST) / 1048576).toFixed(1) + ' MB');
-console.log('\n  deploy:  npx wrangler pages deploy dist --project-name arc76\n');
+console.log('');
+if (IN_PLACE) {
+  console.log('  patched index.html in place (repo is now deployable)');
+  console.log('  s1 ' + S1_VH + 'vh, descent ' + DESCENT + 'vh, ' + patchedLinks + ' App Store links fixed');
+  console.log('  next: git add -A && git commit -m "..." && git push');
+} else {
+  console.log('  baked -> ' + DIST);
+  console.log('  ' + (size(DIST) / 1048576).toFixed(1) + ' MB, ' + copied + ' items, '
+    + patchedLinks + ' App Store links fixed');
+  console.log('  deploy: npx wrangler pages deploy dist --project-name arc76');
+}
+console.log('');
