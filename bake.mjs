@@ -79,10 +79,13 @@ const S1_VH = Math.round(DESCENT * 100) + HOLD_VH;
 
 html = html.replace(RE_S1, (m, pre) => pre + S1_VH + 'vh');
 html = html.replace(RE_HTMLTAG, '<html data-descent-vh="' + DESCENT + '"$1');
-if (!html.includes('scroll-fix.js')) {
-  html = html.replace('</body>',
-    '<script src="/scroll-fix.js" defer></script>\n'
-    + '</body>');
+/* Inject each script independently. A single "is scroll-fix.js already
+   here?" guard silently skips every OTHER tag once one of them is
+   present, so adding a new module to an already-baked file does nothing
+   and the build check then fails on a file it just refused to edit. */
+for (const src of ['/scroll-fix.js', '/perf.js']) {
+  if (html.includes(src)) continue;
+  html = html.replace('</body>', '<script src="' + src + '" defer></script>\n</body>');
 }
 
 // a silently-unpatched build is worse than a failed one: it looks fine
@@ -90,6 +93,7 @@ if (!html.includes('scroll-fix.js')) {
 const checks = [
   ['s1 height', new RegExp('id="s1"[^>]*?height:\\s*' + S1_VH + 'vh')],
   ['scroll-fix tag', /scroll-fix\.js/],
+  ['perf tag', /perf\.js/],
 ];
 const failed = checks.filter(([, re]) => !re.test(html)).map(([n]) => n);
 if (html === before) failed.push('nothing was rewritten at all');
@@ -112,7 +116,7 @@ if (!IN_PLACE) {
     copied++;
   }
 }
-for (const need of ['scroll-fix.js']) {
+for (const need of ['scroll-fix.js', 'perf.js']) {
   if (!fs.existsSync(path.join(OUT, need))) {
     console.error('  BAKE FAILED: missing ' + need); process.exit(1);
   }
