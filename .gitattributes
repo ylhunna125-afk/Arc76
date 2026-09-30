@@ -1,0 +1,8 @@
+# core.autocrlf is true globally on this machine. Without this, index.html
+# and the module JS get committed with CRLF, which makes every re-export
+# look like a whole-file rewrite in the diff.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.webp binary
+*.zip binary

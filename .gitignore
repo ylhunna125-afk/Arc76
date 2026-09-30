@@ -1,0 +1,29 @@
+# Build output. bake.mjs regenerates this from index.html on demand, and
+# it is ~3.4MB of duplicated assets. Deploys go straight from dist via
+# wrangler, so it never needs to be in history.
+dist/
+
+# Wrangler's local cache. Holds the Cloudflare account id and deployment
+# state. Not a secret exactly, but it is machine-local and belongs to
+# this checkout, not to the project.
+.wrangler/
+
+node_modules/
+
+# Raw exports from the design tool. Each is ~2MB of binary that already
+# exists unzipped in the repo, so committing them doubles the size for
+# nothing.
+*.zip
+Claude outputs/
+
+# Local snapshots taken before installing a new export.
+*.bak
+index.html.prev-*
+
+.env
+.env.*
+.DS_Store
+Thumbs.db
+
+# Stale staging snapshot left behind by an earlier tool run.
+.stage.tgz

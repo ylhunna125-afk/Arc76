@@ -1,0 +1,98 @@
+/* Arc76 — Base Camp (#s6). Pairs with base.js.
+ * Placed on the scene's 1440x900 canvas. Animation: transform/opacity only.
+ */
+
+/* retire the export's copy column, stat band, FAQ and HUD; keep the backdrop */
+#s6 .bc-host > div[style*="left:72px"],
+#s6 .bc-host > .faq,
+#s6 .bc-host > .hudx { display: none !important; }
+
+.bc { position: absolute; left: 0; top: 0; width: 1440px; height: 900px; z-index: 5;
+  font-family: 'JetBrains Mono', ui-monospace, monospace; color: #e7ecfb; }
+
+/* pull the dawn backdrop down into the site's navy, dark where the words sit */
+.bc-scrim { position: absolute; inset: 0; pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(5,10,22,.94) 0%, rgba(5,10,22,.86) 30%, rgba(5,10,22,.35) 50%, rgba(5,10,22,0) 62%),
+    linear-gradient(180deg, rgba(5,10,22,0) 76%, rgba(5,10,22,.86) 92%, rgba(5,10,22,.96) 100%),
+    linear-gradient(180deg, rgba(10,20,44,.28), rgba(10,20,44,.28)); }
+
+
+/* ---- copy ---- */
+.bc-copy, .bc-faq, .bc-foot { opacity: var(--bc-in, 1); }
+.bc-copy { position: absolute; left: 72px; top: 176px; width: 600px; display: flex; flex-direction: column; }
+.bc-eyebrow { display: none; margin-bottom: 16px; font-size: 12px; letter-spacing: .22em; text-transform: uppercase; color: #ffd29a; }
+  .bc-h { margin: 0; white-space: nowrap; font: 700 52px/1.04 'Space Grotesk', system-ui, sans-serif; letter-spacing: -.018em; color: #fff; text-wrap: balance; }
+.bc-p { margin: 18px 0 0; max-width: 452px; font-size: 14px; line-height: 1.8; color: #cdd6ea; }
+.bc-chips { display: none; gap: 10px; margin-top: 18px; }
+.bc-chips span { padding: 7px 12px; border-radius: 14px; border: 1px solid rgba(156,195,255,.35); background: rgba(6,12,26,.55); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: #cfe0ff; }
+.bc-full .bc-eyebrow { display: block; }
+.bc-full .bc-chips { display: flex; }
+
+/* ---- the one action ---- */
+.bc-cta { margin-top: 36px; display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 20px; row-gap: 22px; align-items: center; }
+.bc-cta-main { position: relative; }
+.bc-halo { position: absolute; left: -40px; top: -34px; right: -40px; bottom: -34px; border-radius: 60px; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(120,170,255,.42), rgba(63,123,255,.14) 60%, transparent);
+  animation: bcHalo 3.2s ease-in-out infinite; }
+.bc-badge-slot { position: relative; }
+.bc .bigstore { animation: none !important; height: 78px !important; padding: 0 30px 0 24px !important; gap: 14px !important; border-radius: 18px !important;
+  border: 1.5px solid rgba(255,255,255,.85) !important;
+  box-shadow: 0 24px 50px -18px rgba(0,0,0,.9), 0 0 0 7px rgba(156,195,255,.10), 0 0 60px -10px rgba(63,123,255,.55) !important;
+  transition: transform .2s ease, box-shadow .2s ease !important; }
+.bc .bigstore svg { width: 36px !important; height: 36px !important; }
+.bc .bigstore .as-s { font-size: 13px !important; }
+.bc .bigstore .as-b { font-size: 29px !important; letter-spacing: -.01em; }
+.bc .bigstore:hover { transform: translateY(-2px); }
+.bc .bigstore:focus-visible { outline: 2px solid #9cc3ff; outline-offset: 6px; }
+.bc-cta-note { line-height: 1.8; font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: #b8c6e2; }
+
+/* secondary path: clearly smaller, quieter, below the button */
+.bc-qr { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,.1); width: 452px; }
+.bc-qr-code { width: 84px; height: 84px; flex: none; padding: 5px; border-radius: 8px; background: #fff; box-sizing: content-box; }
+.bc-qr-code img, .bc-qr-code canvas, .bc-qr-code svg { display: block; width: 84px !important; height: 84px !important; }
+.bc-qr-t { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; line-height: 1.5; color: #b8c6e2; }
+.bc-qr-t b { font-weight: 600; color: #e7ecfb; }
+
+/* ---- FAQ: quiet, collapsed, scannable ---- */
+.bc-faq { position: absolute; left: 924px; top: 450px; width: 392px; transform: translateY(-50%); padding: 8px 20px 6px; border-radius: 16px;
+  background: rgba(6,11,24,.8); border: 1px solid rgba(255,255,255,.08); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.bc-faq-h { padding: 10px 0 8px; font-size: 10.5px; font-weight: 600; letter-spacing: .28em; text-transform: uppercase; color: #9fb0cf; }
+.bc-q { border-top: 1px solid rgba(255,255,255,.08); }
+.bc-q summary { list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; cursor: pointer;
+  font-size: 13px; font-weight: 500; color: #e3e9f7; }
+.bc-q summary::-webkit-details-marker { display: none; }
+.bc-q summary:focus-visible { outline: 2px solid #9cc3ff; outline-offset: 2px; border-radius: 4px; }
+.bc-q summary i { position: relative; width: 10px; height: 10px; flex: none; }
+.bc-q summary i::before, .bc-q summary i::after { content: ""; position: absolute; left: 0; top: 4.5px; width: 10px; height: 1.5px; background: #8fa2c8; transition: transform .25s ease; }
+.bc-q summary i::after { transform: rotate(90deg); }
+.bc-q[open] summary i::after { transform: rotate(0deg); }
+.bc-q p { margin: 0 0 14px; font-size: 12.5px; line-height: 1.7; color: #c3cde2; animation: bcIn .3s ease; }
+
+/* ---- footer: the page ends here ---- */
+/* the footer's content sits 46px above the canvas edge: on 16:9 screens the
+   scene is cropped about that much top and bottom, on 16:10 the band just runs on */
+.bc-foot { position: absolute; left: 0; bottom: 0; width: 1440px; height: 112px; box-sizing: border-box; padding: 0 72px 50px;
+  background: linear-gradient(180deg, rgba(5,10,22,.0), rgba(5,10,22,.92) 30%, #050a16);
+  display: flex; align-items: flex-end; justify-content: space-between;
+  font-size: 12px; color: #a9b6d0; }
+.bc-links { display: flex; align-items: center; gap: 16px; }
+.bc-foot a { color: #dbe3f3; text-decoration: none; }
+.bc-foot a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.bc-foot a:focus-visible { outline: 2px solid #9cc3ff; outline-offset: 3px; border-radius: 3px; }
+.bc-dot { width: 3px; height: 3px; border-radius: 50%; background: #5d6d8e; }
+.bc-mail { margin-left: -8px; color: #a9b6d0; user-select: all; }
+.bc-missing { text-decoration: underline dashed rgba(255,200,120,.7) !important; text-underline-offset: 3px; cursor: help; }
+
+@keyframes bcHalo { 0%, 100% { opacity: .65; } 50% { opacity: 1; } }
+@keyframes bcIn { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .bc-halo, .bc-q p { animation: none; }
+  .bc .bigstore:hover { transform: none; }
+  .bc-q summary i::before, .bc-q summary i::after { transition: none; }
+}
+
+/* the mountain sits a little left so the questions have room: widened about
+   its right edge, so the summit moves left, the camp stays in frame and no
+   edge of the backdrop is exposed */
+#s6 .bc-host > svg:first-of-type { transform: scaleX(1.12); transform-origin: 100% 50%; }
