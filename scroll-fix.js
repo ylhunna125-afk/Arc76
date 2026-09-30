@@ -37,12 +37,14 @@
 
   const IDLE = 130;        // ms of stillness before it commits
   const GRAB = 0.55;       // how close to a boundary, in screen heights
-  let timer = null, raf = null, snapping = false, dir = 1, lastY = scrollY;
+  let timer = null, raf = null, snapping = false, dir = 1, lastY = scrollY, landedAt = 0;
 
   const targets = () => {
     const vh = innerHeight;
     // the camp (end of the descent), then the top of every later scene
-    return [s1.offsetTop + DESCENT_VH * vh].concat(wraps.slice(1).map((w) => w.offsetTop));
+    // mobile/mobile.js adds the first and second page of the paged scenes on a phone
+    const extra = typeof window.__arcSnapExtra === 'function' ? window.__arcSnapExtra() : [];
+    return [s1.offsetTop + DESCENT_VH * vh].concat(wraps.slice(1).map((w) => w.offsetTop), extra);
   };
 
   const cancel = () => { if (raf) cancelAnimationFrame(raf); raf = null; snapping = false; };
@@ -57,7 +59,7 @@
       const t = Math.min(1, (now - t0) / dur);
       scrollTo(0, from + dist * (1 - Math.pow(1 - t, 3)));
       if (t < 1) raf = requestAnimationFrame(step);
-      else { raf = null; snapping = false; }
+      else { raf = null; snapping = false; landedAt = performance.now(); }
     };
     raf = requestAnimationFrame(step);
   }
@@ -88,7 +90,9 @@
   }
 
   addEventListener('scroll', () => {
-    if (snapping) { lastY = scrollY; return; }    // our own scrolling, not theirs
+    // our own scrolling, not theirs (the scroll event from a snap's last frame lands just after it ends,
+    // and must not chain into a second snap when two targets are close, as on a phone)
+    if (snapping || performance.now() - landedAt < 200) { lastY = scrollY; return; }
     if (scrollY !== lastY) { dir = scrollY > lastY ? 1 : -1; lastY = scrollY; }
     clearTimeout(timer);
     timer = setTimeout(consider, IDLE);

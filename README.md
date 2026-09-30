@@ -28,6 +28,7 @@ Everything that must survive an export lives outside it:
 | `scroll-fix.js` | Snaps to section boundaries after the descent |
 | `showcase.js` / `showcase.css` | The phone fan in the bottom left of the summit |
 | `base/`, `crate/`, `route/` | Redesigned sections 6, 4 and 5 |
+| `mobile/` | Portrait phone layout (full-bleed scenes, re-laid copy, two-page crate/route/base camp) |
 
 `dev.mjs` injects the first three into the HTTP **response** at serve time,
 so the file on disk stays exactly what the design tool produced.
@@ -70,5 +71,5 @@ build. It currently guards:
   dead links in the footer. Apple requires a reachable privacy policy.
 - `arc76.app` still resolves to Namecheap's nameservers. Move them to
   Cloudflare, then add the domain under the Pages project.
-- No mobile layout. The scenes are a fixed 1440x900 canvas and shrink to an
-  unusable strip on a phone; that needs a real portrait design, not scaling.
+- Landscape phones get a "turn your phone upright" screen rather than a
+  landscape layout; the scenes are too short at that height.

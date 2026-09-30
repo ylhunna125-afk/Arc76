@@ -1,0 +1,143 @@
+/* Arc76 — phone layout. Pairs with mobile.js, which adds html.m on a
+ * portrait phone and sets:
+ *   --k   screen px per canvas px (the scene's full height fits the phone)
+ *   --vw  how much of the 1440px canvas is visible, in canvas px
+ *   --vl  (per scene) the canvas x of the left edge of the screen
+ *   --mx  (per scene) how far the scene is slid to centre its focus
+ *   --pg  (crate, route, base camp) 0 -> 1 as the second page comes in
+ * Sizes written as calc(Npx / var(--k)) are N px on the phone's screen.
+ * Animated properties: transform/translate/scale and opacity only.
+ */
+html.m { --g: calc(22px / var(--k)); }
+html.m .fit { translate: var(--mx, 0px) 0; }
+
+/* the frame is the screen */
+html.m .frame, html.m .frame-depth, html.m .progress { display: none !important; }
+html.m .gnav { height: 64px; padding: 0 16px; border-radius: 0;
+  background: linear-gradient(180deg, rgba(5,10,22,.72), rgba(5,10,22,0)); }
+html.m .gnav .brand { font-size: 18px; gap: 10px; }
+html.m .gnav .brand img { width: 28px; height: 28px; }
+html.m .gstore { height: 36px; padding: 0 12px 0 10px; font-size: 13px; }
+html.m .fx-cue { top: calc(var(--fh) - 100px); }
+html.m .fx-cue .cueline { height: 26px; }
+
+/* the one column every scene's copy sits in */
+html.m .m-col { position: absolute !important; left: calc(var(--vl) + var(--g)) !important; width: calc(var(--vw) - 2 * var(--g)) !important; max-width: none !important; }
+
+/* ---- landscape phone: too short for the scenes, ask to turn ---- */
+.m-turn { display: none; }
+html.m-land .m-turn { display: flex; position: fixed; inset: 0; z-index: 5000; align-items: center; justify-content: center; flex-direction: column; gap: 14px;
+  background: #07101f; color: #e7ecfb; font: 500 15px 'JetBrains Mono', ui-monospace, monospace; text-align: center; padding: 24px; }
+html.m-land .m-turn svg { width: 44px; height: 44px; color: #9cc3ff; }
+
+/* ---- copy blocks: zoomed back to real screen sizes, so inline px = phone px ---- */
+html.m .m-copy { zoom: var(--z); gap: 12px !important;
+  left: calc((var(--vl) + var(--g)) * var(--k)) !important; width: calc((var(--vw) - 2 * var(--g)) * var(--k)) !important; }
+html.m .m-copy .disp { font-size: 31px !important; line-height: 1.08 !important; text-wrap: balance; }
+html.m .m-copy .disp + div { font-size: 14.5px !important; line-height: 1.6 !important; max-width: none !important; }
+html.m .m-bot { top: auto !important; bottom: 128px !important; }
+html.m .m-top { top: 84px !important; bottom: auto !important; }
+/* a dark floor under the copy so it reads on snow and ice */
+html.m .m-copy { isolation: isolate; }
+html.m .m-bot::before { content: ""; position: absolute; z-index: -1; left: -40px; right: -40px; top: -90px; bottom: -200px; pointer-events: none;
+  background: linear-gradient(180deg, rgba(5,10,22,0), rgba(5,10,22,.72) 90px, rgba(5,10,22,.86)); }
+
+/* ---- s1 summit + camp ---- */
+html.m #s1 .m-hero { gap: 14px !important; }
+html.m #s1 .m-hero > div:first-child { font-size: 11px !important; }
+html.m #s1 .m-hero .disp { font-size: 30px !important; text-wrap: balance; }
+html.m #s1 .m-hero > div:last-of-type { flex-wrap: wrap; gap: 10px !important; }
+html.m #s1 .m-hero .btn { height: 50px; padding: 0 18px; font-size: 13px; }
+html.m #arc-showcase { display: none !important; }
+html.m #s1 .sfan { translate: -360px -170px; scale: .6; }
+html.m #s1 .campcopy { bottom: 140px !important; }
+
+/* ---- s2 the wall: climber group shrunk into the strip, cards kept legible ---- */
+#s2 .m-grp { position: absolute; left: 0; top: 0; width: 1440px; height: 900px; }
+html.m #s2 .m-grp { transform-origin: 935px 380px; scale: var(--gs, .49); translate: -20px -60px; }
+html.m #s2 .row .ttl { font-size: 27px; }
+html.m #s2 .row .sub { display: none; }
+html.m #s2 .row .ic { transform: scale(1.35); }
+
+/* ---- s4 the crate: page 1 copy + crate, page 2 what's inside ---- */
+html.m #s4 .m-pa { opacity: calc(1 - var(--pg, 0)); translate: 0 calc(var(--pg, 0) * -60px); }
+html.m #s4 .fit > div:has(.crx:not([data-state="idle"])) .m-pa { opacity: 0; pointer-events: none; }
+html.m #s4 .m-pa .disp { font-size: 30px !important; }
+html.m #s4 .crx-pool { zoom: var(--z); left: calc((var(--vl) + var(--g)) * var(--k)); top: 84px; width: calc((var(--vw) - 2 * var(--g)) * var(--k));
+  opacity: var(--pg, 0); translate: 0 calc((1 - var(--pg, 0)) * 80px); pointer-events: none; }
+html.m #s4 .m-p2 .crx-pool { pointer-events: auto; }
+html.m #s4 .crx-pool::before { content: ""; position: absolute; z-index: -1; left: -60px; right: -60px; top: -120px; bottom: -40px; pointer-events: none;
+  background: linear-gradient(180deg, rgba(5,10,22,.9), rgba(5,10,22,.8) 80%, rgba(5,10,22,0)); }
+html.m #s4 .crx-pool { isolation: isolate; }
+
+/* ---- s5 the route: page 1 the planner, page 2 the map it draws ---- */
+html.m #s5 .rt-copy { zoom: var(--z); left: calc((var(--vl) + var(--g)) * var(--k)); top: 84px; width: calc((var(--vw) - 2 * var(--g)) * var(--k));
+  isolation: isolate; opacity: calc(1 - var(--pg, 0)); translate: 0 calc(var(--pg, 0) * -60px); }
+html.m #s5 .m-p2 .rt-copy { pointer-events: none; }
+html.m #s5 .rt-copy::before { content: ""; position: absolute; z-index: -1; left: -60px; right: -60px; top: -140px; height: 1200px; pointer-events: none;
+  background: linear-gradient(180deg, rgba(7,13,28,.92), rgba(7,13,28,.86) 55%, rgba(7,13,28,.35)); }
+html.m #s5 .rt-ms { opacity: var(--pg, 0) !important; }
+html.m #s5 .rt-h { font-size: 30px; text-wrap: balance; }
+html.m #s5 .rt-ms[data-d="45"] .rt-d::after { content: " · Summit"; }
+html.m #s5 .rt-p { font-size: 14.5px; line-height: 1.6; max-width: none; margin-top: 12px; }
+html.m #s5 .rt-pick { margin-top: 20px; gap: 8px; }
+html.m #s5 .rt-tk { height: 48px; padding: 0 10px 0 8px; gap: 8px; font-size: 13px; }
+html.m #s5 .rt-ic { width: 28px; height: 28px; }
+html.m #s5 .rt-own { height: 48px; font-size: 11.5px; }
+html.m #s5 .rt-count { margin-top: 16px; }
+/* milestones: compact cards that fit left of their waypoint */
+html.m #s5 .rt-ms { width: auto; height: auto; display: block; padding: 7px 11px 8px; translate: calc(290px - 100%) 0; }
+html.m #s5 .rt-l { font-size: 13.5px; }
+html.m #s5 .rt-n { display: block; text-align: left; font-size: 10.5px; margin-top: 2px; }
+html.m #s5 .rt-n b { display: inline; font-size: 13px; }
+
+/* ---- s6 base camp: page 1 the download, page 2 questions + footer ---- */
+html.m #s6 .bc-host > svg:first-of-type { transform: none; }
+html.m #s6 .bc-scrim { background: linear-gradient(180deg, rgba(5,10,22,.55), rgba(5,10,22,.25) 45%, rgba(5,10,22,.8)); }
+html.m #s6 .bc-copy { zoom: var(--z); left: calc((var(--vl) + var(--g)) * var(--k)); top: 84px; width: calc((var(--vw) - 2 * var(--g)) * var(--k));
+  opacity: calc(var(--bc-in, 1) * (1 - var(--pg, 0))); translate: 0 calc(var(--pg, 0) * -60px); isolation: isolate; }
+html.m #s6 .m-p2 .bc-copy { pointer-events: none; }
+html.m #s6 .bc-copy::before { content: ""; position: absolute; z-index: -1; left: -60px; right: -60px; top: -140px; bottom: -60px; pointer-events: none;
+  background: linear-gradient(180deg, rgba(5,10,22,.85), rgba(5,10,22,.7) 70%, rgba(5,10,22,0)); }
+html.m #s6 .bc-h { white-space: normal; font-size: 28px; }
+html.m #s6 .bc-p { font-size: 14.5px; line-height: 1.6; max-width: none; }
+html.m #s6 .bc-cta { margin-top: 26px; column-gap: 16px; }
+html.m #s6 .bc .bigstore { height: 60px !important; padding: 0 22px 0 18px !important; }
+html.m #s6 .bc .bigstore svg { width: 28px !important; height: 28px !important; }
+html.m #s6 .bc .bigstore .as-s { font-size: 11px !important; }
+html.m #s6 .bc .bigstore .as-b { font-size: 22px !important; }
+html.m #s6 .bc-cta-note { font-size: 11px; letter-spacing: .12em; }
+html.m #s6 .bc-qr { display: none; }
+html.m #s6 .bc-faq { zoom: var(--z); left: calc((var(--vl) + var(--g)) * var(--k)); top: 84px; width: calc((var(--vw) - 2 * var(--g)) * var(--k)); box-sizing: border-box;
+  transform: none; opacity: calc(var(--bc-in, 1) * var(--pg, 0)); translate: 0 calc((1 - var(--pg, 0)) * 80px); pointer-events: none; }
+html.m #s6 .m-p2 .bc-faq { pointer-events: auto; }
+html.m #s6 .bc-q summary { font-size: 14px; padding: 14px 0; }
+html.m #s6 .bc-q p { font-size: 13.5px; }
+html.m #s6 .bc-foot { zoom: var(--z); left: calc(var(--vl) * var(--k)); width: calc(var(--vw) * var(--k)); height: auto; padding: 60px 22px 96px;
+  flex-direction: column; align-items: flex-start; gap: 12px; font-size: 12.5px; opacity: calc(var(--bc-in, 1) * var(--pg, 0)); pointer-events: none; }
+html.m #s6 .m-p2 .bc-foot { pointer-events: auto; }
+
+/* ---- short phones (SE, mini, Safari with its bars out): tighter type so the art keeps its room ---- */
+@media (max-height: 740px) {
+  html.m .m-copy { gap: 10px !important; }
+  html.m .m-copy .disp, html.m #s1 .m-hero .disp { font-size: 26px !important; }
+  html.m .m-copy .disp + div { font-size: 13.5px !important; line-height: 1.55 !important; }
+  html.m .m-bot { bottom: 112px !important; }
+  html.m #s1 .m-hero .appstore, html.m #s1 .m-hero .btn { height: 44px; }
+  html.m #s1 .sfan { translate: -360px -205px; scale: .56; }
+  html.m #s5 .rt-h, html.m #s6 .bc-h { font-size: 26px; }
+  html.m #s5 .rt-p, html.m #s6 .bc-p { font-size: 13.5px; }
+  html.m #s5 .rt-tk, html.m #s5 .rt-own { height: 44px; }
+  html.m .fx-cue { top: calc(var(--fh) - 86px); }
+}
+@media (max-height: 740px) {
+  html.m #s4 .m-pa .disp { font-size: 25px !important; }
+  html.m #s4 .m-pa { gap: 8px !important; }
+  html.m #s4 .m-pa .cta { height: 44px; }
+  html.m #s4 .m-pa > div:last-child { margin-top: 4px !important; }
+}
+
+/* page 2 on top of page 1: the faded page never catches taps */
+html.m #s4 .m-p2 .m-pa { pointer-events: none; }
+/* a crate opened from the list: step the list aside so the drop shows, it returns on "open another" */
+html.m #s4 .fit > div:has(.crx:not([data-state="idle"])) .crx-pool { opacity: 0 !important; pointer-events: none !important; }
