@@ -135,6 +135,12 @@
      so the zoom from the route map never drags oversized text across the frame */
   function arrival() {
     const el = document.querySelector('.bc');
+    /* In static phone mode (mobile/static.js) there is no route -> base
+       camp move to ride in on, and stateAt() would report i < 5 for the
+       whole page above this section — which resolved to --bc-in: 0, i.e.
+       the entire base-camp block, its App Store button and the footer
+       rendered invisible. Pin it open and stop the loop. */
+    if (window.__arc76Static) { if (el) el.style.setProperty('--bc-in', '1'); return; }
     if (el && typeof stateAt === 'function' && typeof sy !== 'undefined') {
       const s = stateAt(sy);
       const k = s.i < 5 ? 0 : Math.max(0, Math.min(1, (s.e - 0.72) / 0.28));

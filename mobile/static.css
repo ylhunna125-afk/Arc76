@@ -1,0 +1,280 @@
+/* Arc76 — static phone layout. Pairs with mobile/static.js, which adds
+ * html.m-static on a portrait phone (on top of mobile.js's html.m).
+ *
+ * WHY THIS EXISTS
+ * The desktop site is one long scroll-driven camera: six sections of
+ * 165-220vh, each with a .pin fixed to the window, and a rAF loop that
+ * reads scrollY every frame to drive an intro move into each scene. On a
+ * phone that is the whole experience — you cannot scroll without the art
+ * moving under you. The brief was "same content as the main but without
+ * any scroll animations", so on a phone this file turns the page back
+ * into an ordinary vertical scroll: six fixed-framing art panels in
+ * normal flow, with the copy that desktop reveals *during* a scroll
+ * pulled out into plain blocks between them.
+ *
+ * WHY EVERY SELECTOR STARTS html.m-static.m
+ * Not decoration. mobile.css scopes its rules to html.m and several of
+ * them are already !important (the paged-scene opacity, the copy column
+ * geometry). Two classes on <html> beats one at equal trailing
+ * specificity, so these rules win regardless of which stylesheet the
+ * browser loaded first — which matters because static.css is injected
+ * into <head> while mobile.css is a tag near </body>.
+ *
+ * It never touches blur or backdrop-filter, so mobile-lite.css's iOS OOM
+ * fix is untouched. If anything static mode is lighter: no snow canvas,
+ * no CSS animations, and content-visibility keeps the off-screen scenes
+ * out of the layer tree.
+ */
+
+/* ---- normal flow: sections stop being tall, pins stop being fixed ---- */
+/* .wrap was 165-220vh with pointer-events:none so the fixed pin could
+   take the taps (mobile.js stretches s6 to 270vh on top of that). All of
+   that height only ever existed to buy scroll distance for the camera. In
+   flow the wrap IS the section, so it sizes to its children and takes
+   taps again. !important because the export writes the height inline. */
+html.m-static.m .wrap {
+  height: auto !important;
+  pointer-events: auto !important;
+}
+
+/* The pin was position:fixed at var(--fl)/var(--ft), visibility:hidden
+   until the engine's showPin() turned exactly one of them on. Now it is
+   just the art panel: one screen tall, in flow, always visible.
+   transform/filter/opacity are forced off because the camera moves write
+   them inline — the belt to static.js's braces.
+   content-visibility:auto is load-bearing, not a nicety: making all six
+   scenes visible at once is exactly the condition mobile-lite.css exists
+   to prevent, and six promoted will-change layers of 1440x900 SVG is how
+   iOS Safari kills the tab. Skipping the off-screen ones keeps peak
+   memory at roughly the one-scene-visible level the fixed pins had. */
+html.m-static.m .pin {
+  position: relative !important;
+  left: 0 !important;
+  top: 0 !important;
+  width: 100% !important;
+  height: var(--fh, 100lvh) !important;
+  visibility: visible !important;
+  transform: none !important;
+  filter: none !important;
+  opacity: 1 !important;
+  will-change: auto !important;
+  content-visibility: auto;
+  contain-intrinsic-size: auto var(--fh, 100lvh);
+}
+
+/* ---- nothing moves per frame ---- */
+/* animation:none, not animation-play-state:paused. perf.js pauses
+   off-screen scenes to save battery; paused animations still hold their
+   compositor layers and still resume. Here they are simply gone.
+   static.js re-emits the export's own prefers-reduced-motion rules on
+   top of this, because several of these elements animate in FROM
+   opacity:0 with a filled `both` and would otherwise be invisible
+   rather than still. */
+html.m-static.m *,
+html.m-static.m *::before,
+html.m-static.m *::after {
+  animation: none !important;
+}
+
+/* The between-scene effect layer is nothing but camera moves — rope,
+   ledge, cloud bank, spindrift gust, dawn flare, the altimeter HUD — and
+   the snow canvas is 170 particles the rAF loop repaints. None of it has
+   a rest state. The scroll cue and the altimeter rail are scroll
+   read-outs with nothing left to read out. */
+html.m-static.m #fxSnow,
+html.m-static.m .tfx,
+html.m-static.m #fxTopo,
+html.m-static.m .fx-cue,
+html.m-static.m .mist,
+html.m-static.m #s1 .rail,
+html.m-static.m #s1 .scrollcue {
+  display: none !important;
+}
+
+/* ---- the descent, frozen on the high camp ---- */
+/* A backstop, not the mechanism. static.js calls the export's own
+   updateDescent() once with a y past the end of the descent and then
+   stops the loop reading scrollY, which is what actually freezes it.
+   These are the same values that call produces at cam = 2700, written
+   with !important so the art still cannot move even if a future export
+   changes shape enough that the JS override misses. Inline styles lose
+   to an !important stylesheet declaration, which is the only reason
+   this works at all. static.js also sets data-s1/data-camp, which CSS
+   cannot do. */
+html.m-static.m #s1 [data-stage] {
+  --s1y: -2700px !important;
+  --s1s: 1.1 !important;
+  --facey: -1806px !important;
+  --skyy: -324px !important;
+  --fgy: -2745px !important;
+  --heroO: 0 !important;
+  --squall: 0 !important;
+  --stormO: 0.65 !important;
+  --campO: 1 !important;
+  --hudO: 1 !important;
+  --railT: 172px !important;
+}
+
+/* ---- blocks lifted out of the scaled canvas into normal flow ---- */
+/* Desktop reveals this copy as you scroll through a scene: the summit
+   hero fades out as the camera descends, and mobile.js turns the pause
+   after each of the crate/route/base-camp moves into a second "page"
+   that slides the first one away. Static mode cannot slide, so the
+   second page becomes a real block above or below the art panel.
+   These stay children of their own .wrap on purpose — that is what keeps
+   mobile.css's `html.m #s4 .crx-pool` styling working after the move. */
+/* The gnav is fixed and 64px tall, so anything a [data-go] link scrolls
+   to its exact top lands underneath it. In the tall layout the camera
+   move covered this; in flow it has to be said. */
+html.m-static.m .pin,
+html.m-static.m .m-st-flow {
+  scroll-margin-top: 76px;
+}
+
+html.m-static.m .m-st-flow {
+  position: relative;
+  z-index: 2;
+  box-sizing: border-box;
+  padding: 32px 22px 38px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background: #070d1c;
+  color: #e7ecfb;
+  pointer-events: auto;
+}
+/* the art panel above ends in its own dark scrim, so a short fade off the
+   top of the block hides the seam without covering any copy */
+html.m-static.m .m-st-flow[data-where="after"]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -60px;
+  height: 60px;
+  background: linear-gradient(180deg, rgba(7, 13, 28, 0), #070d1c);
+  pointer-events: none;
+}
+
+/* Undo everything that made these blocks a layer floating over a
+   1440x900 canvas: inline position/left/top/width from the export, plus
+   mobile.css's !important copy-column geometry. `zoom` has to go too —
+   inside .fit these are scaled by scale(var(--k)) and mobile.css cancels
+   that with zoom:var(--z); out here there is no --k to cancel, so the
+   type is plain screen px. */
+html.m-static.m .m-st-flow > * {
+  position: relative !important;
+  left: auto !important;
+  right: auto !important;
+  top: auto !important;
+  bottom: auto !important;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  height: auto !important;
+  max-height: none !important;
+  margin: 0 !important;
+  transform: none !important;
+  translate: none !important;
+  rotate: none !important;
+  scale: none !important;
+  zoom: 1 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  box-sizing: border-box;
+}
+/* every one of these blocks drew a ::before scrim sized for the layer it
+   used to float over — in a flow block that is a 1200px-tall black
+   rectangle over the copy below it */
+html.m-static.m .m-st-flow > *::before {
+  display: none !important;
+}
+
+/* s1's hero is the page's opening headline and its only App Store button
+   above the fold, so it leads the page rather than sitting on the art */
+html.m-static.m #s1 .m-st-flow > .hero {
+  display: flex !important;
+  flex-direction: column;
+  gap: 16px !important;
+  padding-top: 84px;
+}
+html.m-static.m #s1 .m-st-flow > .hero .disp {
+  font-size: 31px !important;
+  line-height: 1.08 !important;
+  text-wrap: balance;
+}
+html.m-static.m #s1 .m-st-flow > .hero > div:last-of-type {
+  flex-wrap: wrap;
+  gap: 10px !important;
+}
+
+/* the camp copy, in flow under the camp art */
+html.m-static.m #s1 .m-st-flow > .campcopy {
+  display: flex !important;
+  flex-direction: column;
+  gap: 12px !important;
+}
+html.m-static.m #s1 .m-st-flow > .campcopy .disp {
+  font-size: 28px !important;
+  line-height: 1.1 !important;
+  text-wrap: balance;
+}
+
+/* the crate ladder and the planner were absolutely-positioned panels;
+   in flow they need to lay out as ordinary blocks */
+html.m-static.m .m-st-flow > .crx-pool,
+html.m-static.m .m-st-flow > .bc-faq {
+  display: block !important;
+}
+html.m-static.m .m-st-flow > .bc-foot {
+  display: flex !important;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 0 !important;
+}
+
+/* ---- both pages of the paged scenes, shown at once ---- */
+/* mobile.js drove --pg 0->1 to cross-fade page 1 out and page 2 in. Its
+   loop is stopped in static mode, so --pg never moves; these force both
+   ends of every one of those cross-fades to full opacity instead of
+   leaving whichever page --pg happens to sit at. Missing any one of
+   these silently drops a screen of copy, which is the single most likely
+   way this change ships broken. */
+html.m-static.m #s4 .m-pa,
+html.m-static.m #s5 .rt-ms,
+html.m-static.m #s6 .bc-copy,
+html.m-static.m #s1 .campcopy,
+html.m-static.m #s1 .sfan {
+  opacity: 1 !important;
+  translate: none !important;
+}
+
+/* The route's milestone cards are positioned from their waypoint on the
+   1440px map (inline left, then mobile.css pulls them left of the point
+   with translate: calc(290px - 100%)). The phone only shows ~560 canvas
+   px of that map, so the cards for the lower, further-left waypoints hung
+   off the left edge — screenshotted: DAY 1, DAY 15 and DAY 30 were each
+   cut in half, reading "Y 30 / lfway up". Anchoring them all to the left
+   of the visible strip keeps every card whole and still lines each one up
+   vertically with its own point on the route. */
+html.m-static.m #s5 .rt-ms {
+  left: calc(var(--vl) + var(--g)) !important;
+  translate: none !important;
+}
+
+/* s6's copy, App Store button and footer fade in from --bc-in, which
+   base.js computed from the route -> base camp move. base.js pins it to 1
+   in static mode; this is the backstop, for the same reason the descent
+   values above are. */
+html.m-static.m #s6 .bc {
+  --bc-in: 1 !important;
+}
+
+/* ---- short phones: the art panel shrinks, the flow blocks do not ---- */
+@media (max-height: 740px) {
+  html.m-static.m #s1 .m-st-flow > .hero .disp { font-size: 27px !important; }
+  html.m-static.m #s1 .m-st-flow > .hero { padding-top: 72px; }
+  html.m-static.m .m-st-flow { padding: 26px 20px 32px; }
+}

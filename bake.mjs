@@ -52,8 +52,12 @@ const RE_APPID = /id_YOUR_APP_ID/g;
    deploys a site with missing stylesheets. */
 const SKIP = new Set(['dist', 'node_modules', '.wrangler', '.git',
   'dev.mjs', 'bake.mjs', 'index.html', 'Claude outputs']);
+/* .exe as well as the archives: the cloudflared tunnel binary (cfd.exe,
+   55 MB) gets downloaded into the repo root to expose the dev server for
+   phone testing, and copy-all-with-denylist happily shipped it — 55 MB of
+   a 56.2 MB build was a Windows executable being served from the CDN. */
 const isSkipped = (n) => SKIP.has(n) || n.endsWith('.zip')
-  || n.endsWith('.bak') || n.includes('.prev-');
+  || n.endsWith('.bak') || n.endsWith('.exe') || n.includes('.prev-');
 
 function copyRec(from, to) {
   fs.mkdirSync(to, { recursive: true });
@@ -78,12 +82,27 @@ const DESCENT = parseFloat(dm[2]);
 const S1_VH = Math.round(DESCENT * 100) + HOLD_VH;
 
 html = html.replace(RE_S1, (m, pre) => pre + S1_VH + 'vh');
+/* Strip before adding, or --in-place is not idempotent: this injection
+   had no guard, so every run appended another data-descent-vh to <html>
+   and the file grew. The repo copy had accumulated seven of them, which
+   made a no-op bake show up as a diff — exactly the thing that breaks
+   the deploy-from-repo workflow this flag exists for. Duplicate
+   attributes are harmless to parse (first one wins), so the only symptom
+   was churn, which is why it went unnoticed. */
+html = html.replace(/\s*data-descent-vh="[^"]*"/gi, '');
 html = html.replace(RE_HTMLTAG, '<html data-descent-vh="' + DESCENT + '"$1');
 /* Inject each script independently. A single "is scroll-fix.js already
    here?" guard silently skips every OTHER tag once one of them is
    present, so adding a new module to an already-baked file does nothing
    and the build check then fails on a file it just refused to edit. */
-for (const src of ['/scroll-fix.js', '/perf.js']) {
+/* Load order between these three is deliberately NOT relied on. An
+   already-baked index.html carries the scroll-fix and perf tags, so a
+   newly added module can only ever be appended after them — which means
+   any module that needed to run first would be broken by the very thing
+   that makes this loop idempotent. Every cross-module flag
+   (window.__arc76Static) is therefore read lazily, inside a rAF callback
+   or an event handler, never at load. */
+for (const src of ['/mobile/static.js', '/scroll-fix.js', '/perf.js']) {
   if (html.includes(src)) continue;
   html = html.replace('</body>', '<script src="' + src + '" defer></script>\n</body>');
 }
@@ -96,6 +115,17 @@ if (!html.includes('mobile-lite.css')) {
   html = html.replace('</head>', '<link rel="stylesheet" href="/mobile-lite.css">\n</head>');
 }
 
+/* Static phone mode's stylesheet. Injected separately from mobile-lite
+   for the same reason every script tag above is injected separately: a
+   shared "already patched?" guard skips the others once any one of them
+   is present. In <head> rather than next to mobile/mobile.css so it is
+   never a flash of the animated layout first; it does not need to come
+   after mobile.css in the cascade because every rule in it is scoped
+   html.m-static.m, two classes to mobile.css's one. */
+if (!html.includes('mobile/static.css')) {
+  html = html.replace('</head>', '<link rel="stylesheet" href="/mobile/static.css">\n</head>');
+}
+
 // a silently-unpatched build is worse than a failed one: it looks fine
 // until you scroll, on a URL you have already given people
 const checks = [
@@ -103,9 +133,17 @@ const checks = [
   ['scroll-fix tag', /scroll-fix\.js/],
   ['perf tag', /perf\.js/],
   ['mobile-lite tag', /mobile-lite\.css/],
+  ['static mode script tag', /mobile\/static\.js/],
+  ['static mode stylesheet tag', /mobile\/static\.css/],
 ];
 const failed = checks.filter(([, re]) => !re.test(html)).map(([n]) => n);
-if (html === before) failed.push('nothing was rewritten at all');
+/* "nothing was rewritten" is a DIAGNOSTIC for a build that failed, not a
+   failure on its own. Once the data-descent-vh injection became
+   idempotent, a second --in-place run legitimately rewrites nothing —
+   the file is already correct, and every check above passes. Failing
+   there made a correct no-op build look like a broken export. Only say
+   it when something genuinely did not apply. */
+if (html === before && failed.length) failed.push('nothing was rewritten at all');
 if (failed.length) {
   console.error('\n  BAKE FAILED — the export probably changed shape:');
   for (const f of failed) console.error('    - ' + f);
@@ -125,7 +163,8 @@ if (!IN_PLACE) {
     copied++;
   }
 }
-for (const need of ['scroll-fix.js', 'perf.js', 'mobile-lite.css']) {
+for (const need of ['scroll-fix.js', 'perf.js', 'mobile-lite.css',
+  'mobile/static.js', 'mobile/static.css']) {
   if (!fs.existsSync(path.join(OUT, need))) {
     console.error('  BAKE FAILED: missing ' + need); process.exit(1);
   }

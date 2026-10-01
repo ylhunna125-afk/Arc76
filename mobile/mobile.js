@@ -100,7 +100,16 @@
   const ease = (u) => u * u * (3 - 2 * u);
   let lastD = -1;
   const pageLast = {};
+  /* mobile/static.js turns the phone into an ordinary scroll, so both of
+     the loops below have nothing left to compute: s1's focus is pinned to
+     the camp and the paged scenes show both pages at once. They exit
+     without re-arming rather than spinning on a frozen page — a rAF
+     callback that only reads a boolean still keeps the phone's frame
+     clock running at 60Hz, which is exactly the battery cost this mode is
+     supposed to remove. restartLoops() below puts them back if static
+     mode ever switches off (a narrow desktop window widening again). */
   function frame() {
+    if (window.__arc76Static) return;
     requestAnimationFrame(frame);
     if (!on || typeof stateAt !== 'function') return;
     const d = typeof DESC_T === 'number' ? DESC_T : 0;
@@ -139,6 +148,7 @@
   /* the route draws itself when its page arrives */
   let rtShown = false;
   function routeDraw() {
+    if (window.__arc76Static) return;
     requestAnimationFrame(routeDraw);
     if (!on) return;
     const f = fits.s5, rt = f && f.querySelector('.rt');
@@ -188,4 +198,10 @@
   layout();
   requestAnimationFrame(frame);
   requestAnimationFrame(routeDraw);
+
+  /* static.js calls this when it hands control back */
+  window.__arc76MobileRestart = () => {
+    requestAnimationFrame(frame);
+    requestAnimationFrame(routeDraw);
+  };
 })();

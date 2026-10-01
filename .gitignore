@@ -27,3 +27,7 @@ Thumbs.db
 
 # Stale staging snapshot left behind by an earlier tool run.
 .stage.tgz
+
+# cloudflared tunnel binary (55 MB, downloaded on demand)
+cfd.exe
+smoke-*.png

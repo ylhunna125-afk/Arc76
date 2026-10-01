@@ -219,11 +219,19 @@ ${wps.map((w) => `
     el.classList.remove('drawn');
     const pin = root.closest('.pin');
     const arm = () => {
+      /* re-checked here, not only at the call below: build() runs while
+         route.js executes, which is before static.js has had a chance to
+         set the flag. */
+      if (window.__arc76Static) { el.classList.add('drawn'); return; }
       const on = pin && pin.classList.contains('on') && (typeof stateAt !== 'function' || stateAt(sy).i === 4 && stateAt(sy).e > .85);
       if (on) { el.classList.add('drawn'); return; }
       requestAnimationFrame(arm);
     };
-    if (REDUCED.matches) el.classList.add('drawn'); else requestAnimationFrame(arm);
+    /* Static phone mode (mobile/static.js) collapses the sections, so
+       `stateAt(sy).i === 4 && e > .85` is never satisfied and arm() would
+       spin forever with the route line never drawn — a blank map where
+       desktop shows the whole 60-day climb. Draw it straight away. */
+    if (REDUCED.matches || window.__arc76Static) el.classList.add('drawn'); else requestAnimationFrame(arm);
     return true;
   }
 

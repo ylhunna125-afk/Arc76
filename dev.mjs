@@ -89,11 +89,25 @@ function fixScroll(html) {
   let out = html;
   out = out.replace(RE_S1, (m, pre) => pre + S1_VH + 'vh');
   out = out.replace(RE_DESCENT, (m, pre) => pre + DESCENT);
-  // hand the value to scroll-fix.js so the two cannot drift apart
+  // hand the value to scroll-fix.js so the two cannot drift apart.
+  // strip first: the file on disk may already carry one (or several, if
+  // it was baked in place before that injection was made idempotent).
+  out = out.replace(/\s*data-descent-vh="[^"]*"/gi, '');
   out = out.replace(RE_HTMLTAG, '<html data-descent-vh="' + DESCENT + '"$1');
-  if (!out.includes('scroll-fix.js')) {
-    out = out.replace('</head>', '<link rel="stylesheet" href="/mobile-lite.css"></head>');
-    out = out.replace('</body>', '<script src="/scroll-fix.js" defer></script><script src="/perf.js" defer></script>\n</body>');
+  /* Each tag gets its own guard. A single "is scroll-fix.js already
+     here?" check around all of them silently skipped every other tag
+     once any one was present — and since `node bake.mjs --in-place`
+     leaves scroll-fix.js written into index.html on disk, that guard was
+     live and the dev server was serving the page with no mobile-lite.css
+     at all. Same bug bake.mjs warns about, same fix. */
+  for (const href of ['/mobile-lite.css', '/mobile/static.css']) {
+    if (out.includes(href)) continue;
+    out = out.replace('</head>', '<link rel="stylesheet" href="' + href + '"></head>');
+  }
+  /* Order between these is not relied on — see the note in bake.mjs. */
+  for (const src of ['/mobile/static.js', '/scroll-fix.js', '/perf.js']) {
+    if (out.includes(src)) continue;
+    out = out.replace('</body>', '<script src="' + src + '" defer></script>\n</body>');
   }
   return out;
 }
