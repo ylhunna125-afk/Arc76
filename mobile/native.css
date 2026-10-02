@@ -1,0 +1,610 @@
+/* Arc76 — portrait-native phone layout. Pairs with mobile/native.js,
+ * which adds html.mn on a portrait phone (on top of mobile.js's html.m
+ * and static.js's html.m-static).
+ *
+ * WHY THIS EXISTS
+ * mobile.js scales each 1440x900 scene so its full HEIGHT fits the phone
+ * and then slides it sideways onto one focus point. At 390x844 that is
+ * k = 844/900 = 0.938, so the phone sees 390/0.938 = 416 of 1440 canvas
+ * px — 29% of the authored width. Whatever the focus point misses is
+ * simply not on the page. Measured consequences, all verified in
+ * screenshots at 390x844 DPR3 before this file existed:
+ *
+ *   s1  ~45% of the first viewport is empty gradient and the hero
+ *       headline sits BELOW the fold — on a page whose only job is an
+ *       App Store tap.
+ *   s3  the summit figure is at canvas x 366-674. The phone was looking
+ *       at x 792-1208. The subject of the scene was off-screen by 120px
+ *       and the visitor saw bare sky.
+ *   s4  the crate (canvas y 524-746) ran off the bottom of the frame.
+ *   s6  a ~500px band of empty gradient between the CTA and the tents.
+ *   s2  the five task rows render at 0.457 of authored size, so their
+ *       "Take photo to confirm." sub-lines came out at ~6px and had to
+ *       be display:none'd.
+ *
+ * THE REPLACEMENT IDEA
+ * Stop fitting the canvas HEIGHT and start framing a RECTANGLE of it.
+ * native.js carries one measured focal rect per scene — the smallest
+ * canvas rect that contains that scene's subject — and this file renders
+ * it: scale = stageWidth / rect.w, and the stage is only as tall as the
+ * rect needs. A stage can therefore be 285px (s3) or 459px (s2), and a
+ * band of empty gradient is structurally impossible because no stage is
+ * forced to fill the viewport any more.
+ *
+ * Everything that is not art is lifted out of the scaled canvas into
+ * ordinary flow blocks, so copy is laid out in real screen pixels
+ * instead of canvas px divided by k.
+ *
+ * WHY EVERY SELECTOR STARTS html.mn.m-static.m
+ * Same reason static.css uses two classes, one more time. mobile.css is
+ * a <link> near </body> and this file is injected into <head>, so at
+ * equal specificity mobile.css wins on source order. Three classes on
+ * <html> beats mobile.css's one and static.css's two, so these rules win
+ * regardless of load order. Requiring .m-static is also a safety
+ * interlock: if static.js ever fails to run, native mode does not apply
+ * and the page degrades to the previous phone layout rather than to a
+ * scroll-driven camera pointed at the wrong rectangles.
+ *
+ * iOS MEMORY BUDGET (mobile-lite.css)
+ * Nothing here adds a blur, a backdrop-filter or an SVG filter, and no
+ * stage is larger than the viewport. Total blurred surface on a phone
+ * stays at the 0 that mobile-lite.css enforces. The stages are SHORTER
+ * than the old 100lvh pins, so peak composited area goes down, not up.
+ * content-visibility:auto is kept on every pin for the same reason
+ * static.css added it.
+ *
+ * FRAME COST
+ * No animation, no transition on a scroll-driven property, no rAF, no
+ * IntersectionObserver. The 0-rAF/0ms-at-rest baseline static.js
+ * established is untouched; this file is pure layout.
+ */
+
+/* ============================================================== */
+/* 1. THE STAGE — a framed rectangle of the canvas, not a letterbox */
+/* ============================================================== */
+
+/* static.css pinned every .pin to var(--fh) (a full 100lvh). That is
+   what produced the empty bands: the scene was given a screen of height
+   whether or not it had a screen of content. Here the height comes from
+   the focal rect, via --st-h, which native.js writes per scene.
+   overflow:hidden is what makes it a frame rather than a slide. */
+html.mn.m-static.m .pin.mn-stage {
+  height: var(--st-h, 60vh) !important;
+  overflow: hidden !important;
+  contain-intrinsic-size: auto var(--st-h, 60vh);
+  background: #060b18;      /* behind the art while content-visibility skips it */
+}
+
+/* The canvas itself. transform-origin 0 0 turns the transform into plain
+   arithmetic — canvas (X,Y) lands at ((X - st-x) * st-k, (Y - st-y) * st-k)
+   — which is the whole point: the rect's top-left corner goes to the
+   stage's top-left corner and nothing else has to be reasoned about.
+   The export writes `transform: scale(var(--k))` with origin 720px 450px
+   and mobile.css adds `translate: var(--mx) 0`; both are replaced here,
+   and !important is what keeps a resize-time fit() from undoing it. */
+html.mn.m-static.m .mn-stage .fit {
+  left: 0 !important;
+  top: 0 !important;
+  right: auto !important;
+  bottom: auto !important;
+  margin: 0 !important;
+  width: 1440px !important;
+  height: 900px !important;
+  transform-origin: 0 0 !important;
+  transform: scale(var(--st-k, 1)) translate(var(--st-x, 0px), var(--st-y, 0px)) !important;
+  translate: none !important;
+}
+
+/* s5's map is the one scene that was already right in portrait — it is
+   vertical by nature, so fit-the-height happens to frame it correctly.
+   It keeps mobile.js's geometry untouched and only takes the station
+   chrome below. Stated as a rule rather than left implicit so a future
+   edit does not "tidy" it into the mn-stage branch. */
+html.mn.m-static.m .pin.mn-keep {
+  height: var(--fh, 100lvh) !important;
+  overflow: hidden !important;
+}
+
+/* ============================================================== */
+/* 2. STATION CHROME — the rhythm that replaces six separate panels */
+/* ============================================================== */
+
+/* Each section becomes a station: a hairline + a label, then the stage,
+   then the copy, then the action. Repeating that six times is what
+   turns "panels you stare at" into "content you move through", and the
+   label is the only orientation cue left once the pinned sections and
+   their camera moves are gone. */
+html.mn.m-static.m .mn-kick {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 26px 22px 14px;
+  background: #060b18;
+  position: relative;
+  z-index: 3;
+}
+html.mn.m-static.m .mn-kick::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(127, 178, 255, .34), rgba(127, 178, 255, 0));
+}
+html.mn.m-static.m .mn-kick b {
+  font: 700 10.5px/1 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .26em;
+  text-transform: uppercase;
+  color: #7fb2ff;
+  white-space: nowrap;
+}
+/* s6 already ships its own eyebrow ("07 — Base camp") from base.js.
+   Restyled to match rather than hidden, because dropping shipped copy
+   to make a decorative row consistent is the wrong trade. */
+html.mn.m-static.m #s6 .bc-eyebrow {
+  font: 700 10.5px/1 'JetBrains Mono', ui-monospace, monospace !important;
+  letter-spacing: .26em !important;
+  text-transform: uppercase !important;
+  color: #7fb2ff !important;
+  margin: 0 0 18px !important;
+  padding: 0 !important;
+}
+
+/* ============================================================== */
+/* 3. FLOW BLOCKS — copy at real screen sizes                      */
+/* ============================================================== */
+
+/* These boxes carry static.css's .m-st-flow class as well, which is
+   what strips the absolute position / inline width / zoom / scrim that
+   every one of these blocks inherited from floating over a 1440x900
+   canvas. This only has to set the portrait typography on top. */
+html.mn.m-static.m .m-st-flow {
+  padding: 28px 22px 34px !important;
+  gap: 18px !important;
+  background: #060b18 !important;
+}
+/* static.css fades the seam above an "after" block. With stages that
+   end in their own art rather than a scrim, a hard edge reads better
+   than a 60px wash over the bottom of the picture. */
+html.mn.m-static.m .m-st-flow[data-where="after"]::before,
+html.mn.m-static.m .mn-flow::before {
+  display: none !important;
+}
+
+html.mn.m-static.m .mn-flow > .disp,
+html.mn.m-static.m .mn-flow .disp,
+html.mn.m-static.m #s5 .rt-h,
+html.mn.m-static.m #s6 .bc-h {
+  font-size: 31px !important;
+  line-height: 1.06 !important;
+  font-weight: 700 !important;
+  letter-spacing: -.012em !important;
+  color: #f4f7ff !important;
+  text-wrap: balance;
+  margin: 0 !important;
+}
+/* the body paragraph in every station: the export writes these as a bare
+   sibling div with an inline font-size, so they are addressed by position */
+html.mn.m-static.m .mn-flow .disp + div,
+html.mn.m-static.m #s5 .rt-p,
+html.mn.m-static.m #s6 .bc-p {
+  font-size: 15px !important;
+  line-height: 1.62 !important;
+  color: #b9c6e0 !important;
+  max-width: none !important;
+  margin: 0 !important;
+}
+/* .rt-copy and .bc-copy are single children of their flow box, so the
+   box's flex gap never reaches their h2/p pair — the margin has to be
+   restated here or the body text welds itself to the headline. */
+html.mn.m-static.m #s5 .rt-p,
+html.mn.m-static.m #s6 .bc-p { margin-top: 16px !important; }
+
+/* ============================================================== */
+/* 4. CALLS TO ACTION                                              */
+/* ============================================================== */
+
+/* Exactly two in-page CTAs on the phone: the hero badge at the top and
+   the base-camp badge at the bottom, plus the sticky nav pill that is
+   on screen the whole visit.
+
+   The per-station buttons an earlier pass added are gone (see
+   native.js). These hide the export's OWN blue inline App Store buttons
+   — s3 "Cut the cord tonight" and s4 "Earn your first crate" — at the
+   owner's instruction: "dont have the blue app buttons just the cta at
+   the top of the page and the one at the bottom".
+
+   This is a deliberate removal of two existing strings, phone only.
+   Desktop keeps both buttons; every selector here is scoped
+   html.mn.m-static.m, which never matches outside a portrait phone. */
+html.mn.m-static.m .m-st-flow .cta,
+html.mn.m-static.m .mn-flow .cta,
+/* s5's summit card carries a third one, linear-gradient(#3f7bff,#1f5eff).
+   It was never actually visible on a phone — measured at x 335..616 of a
+   390px frame, i.e. wholly past the right edge and clipped by the
+   stage's overflow:hidden — but it is still a blue inline App Store
+   button and still a tab stop, so it goes with the other two. */
+html.mn.m-static.m #s5 .final .cta {
+  display: none !important;
+}
+/* the export wraps each of those buttons in a bare div with a
+   margin-top; without this the removed button leaves its gap behind */
+html.mn.m-static.m .m-st-flow > * > div:has(> .cta) {
+  display: none !important;
+}
+
+/* ============================================================== */
+/* 5. s1 — the hero. Everything above the fold.                    */
+/* ============================================================== */
+
+/* The one measurement that matters on this page: at 390x844 the nav
+   (64) + this block (~250) leaves ~530px, and the stage below is 434,
+   so the headline, the App Store button AND the product screenshots are
+   all on the first screen. Before this, the headline started at y=1750. */
+html.mn.m-static.m #s1 .m-st-flow > .hero {
+  padding-top: 68px !important;
+  gap: 18px !important;
+}
+html.mn.m-static.m #s1 .m-st-flow > .hero > div:first-child {
+  font-size: 10.5px !important;
+  letter-spacing: .26em !important;
+  color: #7fb2ff !important;
+}
+html.mn.m-static.m #s1 .m-st-flow > .hero .disp {
+  font-size: 34px !important;
+  line-height: 1.04 !important;
+  letter-spacing: -.016em !important;
+}
+html.mn.m-static.m #s1 .m-st-flow > .hero > div:last-of-type {
+  display: flex !important;
+  flex-direction: column;
+  gap: 10px !important;
+  margin-top: 4px !important;
+}
+html.mn.m-static.m #s1 .hero .appstore {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  height: 56px !important;
+  box-sizing: border-box;
+  border-radius: 14px !important;
+}
+html.mn.m-static.m #s1 .hero .btn {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 50px !important;
+  box-sizing: border-box;
+  border-radius: 14px !important;
+  font-size: 13.5px !important;
+}
+
+/* the phone fan is the product, and the product is the strongest asset
+   on a conversion page — so the stage is framed on it (canvas rect
+   [705,80,710,790], measured) rather than on scenery. mobile.css shrank
+   it to .6 and shoved it off to one side to survive the old letterbox;
+   both of those are now the frame's job. */
+html.mn.m-static.m #s1 .sfan {
+  translate: none !important;
+  scale: 1 !important;
+  opacity: 1 !important;
+}
+
+/* the camp copy, under the camp art */
+html.mn.m-static.m #s1 .m-st-flow > .campcopy .disp {
+  font-size: 29px !important;
+  line-height: 1.07 !important;
+}
+
+/* ============================================================== */
+/* 6. s2 — the wall. A task AT each pickaxe.                      */
+/* ============================================================== */
+
+/* THE PROBLEM THIS SOLVES
+ * The art is five axe placements around a climber, with an orange rope
+ * running from each axe out to its task card. Portrait broke it twice
+ * over: at the scale that fits all five columns across 390px the cards'
+ * 12.5px sub-line renders at 6-7px, and at the scale that makes the
+ * sub-line legible only the climber fits. An earlier pass cropped tight
+ * on the climber and moved the five tasks into a list underneath, which
+ * reads as "a picture, then a list" rather than "five placements, five
+ * tasks".
+ *
+ * THE FIX
+ * Zoom the art out (k 1.15 -> 0.80, so the figure goes 146px -> 98px)
+ * and take the five labels OUT of the scaled canvas into a screen-space
+ * layer over the stage. native.js projects each anchor's canvas
+ * coordinate to screen px and places its label there, with the label's
+ * inner edge exactly on the end of that axe's rope. Type size is then
+ * independent of the zoom: 13px titles and 12px sub-lines at any frame.
+ *
+ * Measured at 390x844: label column 122px a side, figure 98px between
+ * them, 6px gutters. Nothing overlaps the art and nothing is below 12px.
+ */
+
+/* the art is now framed by native.js's rect, so mobile.css's group
+   scale-down (the thing that produced 6px sub-lines) must go */
+html.mn.m-static.m #s2 .m-grp {
+  scale: 1 !important;
+  translate: none !important;
+  transform: none !important;
+}
+
+/* the screen-space layer. Inside .pin, so it is clipped with the stage
+   and skipped by content-visibility with it, but OUTSIDE .fit, so
+   nothing in it is touched by scale(var(--st-k)). */
+html.mn.m-static.m .mn-anchors {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+/* one label, centred on its anchor by native.js.
+   `.tx { display: contents }` is load-bearing: it dissolves the
+   icon/text wrapper so .ttl and .sub become grid items of .row
+   directly, which lets the sub-line span the FULL label width instead
+   of being trapped in the narrow text column beside the icon. That one
+   declaration is the difference between a 12px sub-line and an 8px one. */
+html.mn.m-static.m .mn-anchors .row {
+  position: absolute !important;
+  top: 0;
+  /* index.html pins `#s2 .row{width:300px;height:64px}`. The width is
+     overwritten per label by native.js; the height has to be released
+     here or a sub-line that wrapped to two lines is clipped mid-letter
+     (screenshotted: "done." sheared in half). */
+  height: auto !important;
+  min-height: 0 !important;
+  display: grid !important;
+  grid-template-columns: 18px minmax(0, 1fr);
+  column-gap: 7px;
+  row-gap: 3px;
+  align-items: center;
+  box-sizing: border-box;
+  padding: 8px 9px !important;
+  border-radius: 11px !important;
+  border: 1px solid rgba(146, 174, 224, .18) !important;
+  background: rgba(7, 12, 26, .9) !important;
+  box-shadow: 0 6px 18px rgba(2, 5, 12, .45) !important;
+  overflow: hidden;          /* belt: nothing paints outside its plate */
+  opacity: 1 !important;
+  transform: none !important;
+  translate: none !important;
+  scale: none !important;
+  pointer-events: auto;
+}
+html.mn.m-static.m .mn-anchors .row .tx { display: contents !important; }
+
+html.mn.m-static.m .mn-anchors .row .ic {
+  grid-column: 1;
+  grid-row: 1;
+  transform: none !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+}
+html.mn.m-static.m .mn-anchors .row .ic svg { width: 18px !important; height: 18px !important; }
+
+/* justify-self:start is not cosmetic. The export draws the done-state
+   strikethrough as an absolutely-positioned <i> stretched across .ttl,
+   so a .ttl stretched to the full grid cell drew a rule running off into
+   empty plate. Shrinking the cell to its text makes the strikethrough
+   hug the word again. */
+html.mn.m-static.m .mn-anchors .row .ttl {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: start;
+  max-width: 100%;
+  min-width: 0;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  line-height: 1.25 !important;
+  white-space: nowrap !important;
+  color: #e9eefb !important;
+}
+/* restored, and the reason the whole layer exists. At the old in-canvas
+   scale this was ~6px, which is why mobile.css hid it. */
+/* Spanning both columns, and white-space:normal, are both required.
+   Measured: "Take photo to confirm." is 117px at 12px, against 104px of
+   plate content at 390px wide. Without the span it only gets the 79px
+   text column; without normal it inherits nowrap and simply runs off the
+   side of the plate (screenshotted). It wraps to two lines instead, and
+   there is room: same-side anchors are 120px apart and a two-line plate
+   is 80px tall. Shrinking the type to fit one line would have meant
+   10.5px, which is below the legibility floor. */
+html.mn.m-static.m .mn-anchors .row .sub {
+  display: block !important;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  min-width: 0;
+  font-size: 12px !important;
+  line-height: 1.3 !important;
+  white-space: normal !important;
+  overflow-wrap: break-word;
+  color: #93a3c2 !important;
+}
+html.mn.m-static.m .mn-anchors .row.is-done .ttl { color: #8391ad !important; }
+html.mn.m-static.m .mn-anchors .row.is-done .sub { color: #6e7c99 !important; }
+/* the done/todo control is dropped: at a 122px label there is no room
+   for it beside the title, and the state is already carried twice over
+   — by the strikethrough on a done title, and by whether that axe's
+   glow is lit on the wall behind. No text is lost; .sw holds only icons. */
+html.mn.m-static.m .mn-anchors .row .sw { display: none !important; }
+html.mn.m-static.m .mn-anchors .row.glow { border-color: rgba(69, 204, 122, .38) !important; }
+
+/* ============================================================== */
+/* 7. s3 — the pull                                                */
+/* ============================================================== */
+
+/* The fix here is only the frame: the figure and the flag are at canvas
+   x 366-674 and the locked-app cluster at x 39-358, so the scene's whole
+   subject lives in the left half of a canvas the phone was reading from
+   the right half of. Rect [15,390,670,490] holds both. */
+
+/* ============================================================== */
+/* 8. s4 — the cache. The crate, whole.                            */
+/* ============================================================== */
+
+/* The reward card is authored at canvas (607,148) — a third of a screen
+   above the crate, which is fine on a 1440x900 stage and off the top of
+   a 437px one. Moved down over the crate, which is also where it reads
+   as coming OUT of it, and widened to the full frame so its type is not
+   scaled down with the art. */
+html.mn.m-static.m #s4 .crx-card {
+  left: 545px !important;
+  top: 440px !important;
+  width: 390px !important;
+}
+/* The tier preview ("Inside every crate", the four LEGENDARY / EPIC /
+   RARE / COMMON rows and their odds) is removed on the phone at the
+   owner's instruction. Desktop keeps it.
+
+   display:none rather than visibility or opacity on purpose: it takes
+   the four <button class="crx-row"> elements out of the accessibility
+   tree AND the tab order, so nothing hidden is still focusable.
+
+   The second selector is the flow box static.js lifted the ladder into
+   (its RELOC puts .crx-pool in s4's data-where="after" box, and nothing
+   else goes there). Hiding only the ladder would leave that box's
+   28px + 34px of padding behind as an empty band under the crate copy.
+
+   crate.js is unaffected: it only toggles an .on class on these rows
+   when a crate opens, and the main tap target (.crx-hit) opens a crate
+   on its own. Measured after the change: the crate opens and the reward
+   card lands fully inside the stage. */
+html.mn.m-static.m #s4 .crx-pool,
+html.mn.m-static.m #s4 > .m-st-flow[data-where="after"] {
+  display: none !important;
+}
+
+/* ============================================================== */
+/* 9. s5 — the route. Already correct; only the chrome changes.    */
+/* ============================================================== */
+
+html.mn.m-static.m #s5 .rt-copy {
+  position: relative !important;
+  left: auto !important;
+  top: auto !important;
+  width: 100% !important;
+  zoom: 1 !important;
+  opacity: 1 !important;
+}
+html.mn.m-static.m #s5 .rt-copy::before { display: none !important; }
+html.mn.m-static.m #s5 .rt-pick { margin-top: 22px !important; }
+html.mn.m-static.m #s5 .rt-tk, html.mn.m-static.m #s5 .rt-own { height: 50px !important; }
+
+/* ============================================================== */
+/* 10. s6 — base camp. The last ask.                               */
+/* ============================================================== */
+
+html.mn.m-static.m #s6 .bc-copy {
+  position: relative !important;
+  left: auto !important;
+  top: auto !important;
+  width: 100% !important;
+  zoom: 1 !important;
+  opacity: 1 !important;
+  translate: none !important;
+}
+html.mn.m-static.m #s6 .bc-copy::before { display: none !important; }
+/* No `display` here on purpose. base.js ships
+   CONFIG.showEyebrowAndChips = false, which keeps the eyebrow and these
+   chips hidden on every platform; forcing them visible on the phone
+   would override an explicit owner setting, so this only says what they
+   look like IF that flag is turned on. */
+html.mn.m-static.m #s6 .bc-chips {
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 18px 0 0 !important;
+}
+html.mn.m-static.m #s6 .bc-cta {
+  display: flex !important;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+  margin-top: 24px !important;
+}
+/* the badge is three nested blocks deep (.bc-cta-main > .bc-badge-slot >
+   a.bigstore), each of which shrink-wraps on desktop, so widening only
+   the anchor left it at ~60% of the column */
+html.mn.m-static.m #s6 .bc-cta-main,
+html.mn.m-static.m #s6 .bc-badge-slot {
+  width: 100% !important;
+  display: block !important;
+}
+/* `.bc .bigstore`, which is what mobile.css uses, stops matching the
+   moment .bc-copy is lifted out of .bc — the badge is no longer a
+   descendant. Addressed from #s6 instead. */
+html.mn.m-static.m #s6 .bigstore {
+  width: 100% !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  height: 62px !important;
+  box-sizing: border-box;
+}
+/* the halo is sized to the old badge box; without this it is a bright
+   rectangle hanging off one side of a now-full-width button */
+html.mn.m-static.m #s6 .bc-halo { display: none !important; }
+html.mn.m-static.m #s6 .bc-cta-note {
+  text-align: center;
+  font-size: 11px !important;
+  letter-spacing: .14em !important;
+}
+html.mn.m-static.m #s6 .bc-faq, html.mn.m-static.m #s6 .bc-foot {
+  position: relative !important;
+  left: auto !important;
+  width: 100% !important;
+  zoom: 1 !important;
+  opacity: 1 !important;
+  padding: 0 !important;
+}
+
+/* ============================================================== */
+/* 11. nav                                                         */
+/* ============================================================== */
+
+/* The old nav faded to transparent, which was fine over a full-bleed
+   scene and is not fine over a flow block of copy that scrolls under
+   it. Solid, with a hairline, so the App Store pill is always legible —
+   it is the one CTA that is on screen for the entire visit. */
+html.mn.m-static.m .gnav {
+  background: rgba(6, 11, 24, .94) !important;
+  border-bottom: 1px solid rgba(127, 178, 255, .12) !important;
+}
+
+/* ============================================================== */
+/* 12. short phones (SE, mini, Safari with its bars out)           */
+/* ============================================================== */
+
+@media (max-height: 740px) {
+  html.mn.m-static.m .m-st-flow { padding: 24px 20px 28px !important; gap: 15px !important; }
+  html.mn.m-static.m .mn-kick { padding: 20px 20px 12px; }
+  html.mn.m-static.m #s1 .m-st-flow > .hero { padding-top: 70px !important; gap: 14px !important; }
+  html.mn.m-static.m #s1 .m-st-flow > .hero .disp { font-size: 29px !important; }
+  html.mn.m-static.m .mn-flow .disp,
+  html.mn.m-static.m #s5 .rt-h,
+  html.mn.m-static.m #s6 .bc-h { font-size: 27px !important; }
+  html.mn.m-static.m .mn-flow .disp + div,
+  html.mn.m-static.m #s5 .rt-p,
+  html.mn.m-static.m #s6 .bc-p { font-size: 14px !important; line-height: 1.58 !important; }
+  html.mn.m-static.m #s1 .hero .appstore { height: 50px !important; }
+  html.mn.m-static.m #s1 .hero .btn { height: 46px !important; }
+}
+
+/* larger phones: let the type grow with the frame rather than leaving a
+   390px-wide design floating in a 430px window */
+@media (min-width: 412px) {
+  html.mn.m-static.m .m-st-flow { padding: 30px 24px 38px !important; }
+  html.mn.m-static.m .mn-kick { padding: 28px 24px 15px; }
+  html.mn.m-static.m #s1 .m-st-flow > .hero .disp { font-size: 37px !important; }
+  html.mn.m-static.m .mn-flow .disp,
+  html.mn.m-static.m #s5 .rt-h,
+  html.mn.m-static.m #s6 .bc-h { font-size: 33px !important; }
+  html.mn.m-static.m .mn-flow .disp + div,
+  html.mn.m-static.m #s5 .rt-p,
+  html.mn.m-static.m #s6 .bc-p { font-size: 15.5px !important; }
+}

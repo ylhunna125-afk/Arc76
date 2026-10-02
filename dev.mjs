@@ -100,12 +100,15 @@ function fixScroll(html) {
      leaves scroll-fix.js written into index.html on disk, that guard was
      live and the dev server was serving the page with no mobile-lite.css
      at all. Same bug bake.mjs warns about, same fix. */
-  for (const href of ['/mobile-lite.css', '/mobile/static.css']) {
+  for (const href of ['/mobile-lite.css', '/mobile/static.css', '/mobile/native.css']) {
     if (out.includes(href)) continue;
     out = out.replace('</head>', '<link rel="stylesheet" href="' + href + '"></head>');
   }
-  /* Order between these is not relied on — see the note in bake.mjs. */
-  for (const src of ['/mobile/static.js', '/scroll-fix.js', '/perf.js']) {
+  /* Order between these is not relied on — see the note in bake.mjs.
+     mobile/native.js in particular reads window.__arc76Static lazily,
+     inside decide(), and re-checks on a 120ms retry, so it does not care
+     whether static.js ran before or after it. */
+  for (const src of ['/mobile/static.js', '/mobile/native.js', '/scroll-fix.js', '/perf.js']) {
     if (out.includes(src)) continue;
     out = out.replace('</body>', '<script src="' + src + '" defer></script>\n</body>');
   }

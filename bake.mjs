@@ -102,7 +102,7 @@ html = html.replace(RE_HTMLTAG, '<html data-descent-vh="' + DESCENT + '"$1');
    that makes this loop idempotent. Every cross-module flag
    (window.__arc76Static) is therefore read lazily, inside a rAF callback
    or an event handler, never at load. */
-for (const src of ['/mobile/static.js', '/scroll-fix.js', '/perf.js']) {
+for (const src of ['/mobile/static.js', '/mobile/native.js', '/scroll-fix.js', '/perf.js']) {
   if (html.includes(src)) continue;
   html = html.replace('</body>', '<script src="' + src + '" defer></script>\n</body>');
 }
@@ -126,6 +126,19 @@ if (!html.includes('mobile/static.css')) {
   html = html.replace('</head>', '<link rel="stylesheet" href="/mobile/static.css">\n</head>');
 }
 
+/* The portrait-native phone layout's stylesheet. Its own guard, for the
+   third time and the same reason: a shared "already patched?" check
+   skips every other tag once any one of them is present, so adding this
+   module to an already-baked index.html would do nothing and then fail
+   the check below on a file it had just refused to edit.
+   Every rule in it is scoped html.mn.m-static.m — three classes — so it
+   beats both mobile.css (one) and static.css (two) wherever they
+   overlap, and the cascade does not depend on where in <head> it lands
+   or on which tag an earlier bake happened to write first. */
+if (!html.includes('mobile/native.css')) {
+  html = html.replace('</head>', '<link rel="stylesheet" href="/mobile/native.css">\n</head>');
+}
+
 // a silently-unpatched build is worse than a failed one: it looks fine
 // until you scroll, on a URL you have already given people
 const checks = [
@@ -135,6 +148,8 @@ const checks = [
   ['mobile-lite tag', /mobile-lite\.css/],
   ['static mode script tag', /mobile\/static\.js/],
   ['static mode stylesheet tag', /mobile\/static\.css/],
+  ['portrait layout script tag', /mobile\/native\.js/],
+  ['portrait layout stylesheet tag', /mobile\/native\.css/],
 ];
 const failed = checks.filter(([, re]) => !re.test(html)).map(([n]) => n);
 /* "nothing was rewritten" is a DIAGNOSTIC for a build that failed, not a
@@ -164,7 +179,8 @@ if (!IN_PLACE) {
   }
 }
 for (const need of ['scroll-fix.js', 'perf.js', 'mobile-lite.css',
-  'mobile/static.js', 'mobile/static.css']) {
+  'mobile/static.js', 'mobile/static.css',
+  'mobile/native.js', 'mobile/native.css']) {
   if (!fs.existsSync(path.join(OUT, need))) {
     console.error('  BAKE FAILED: missing ' + need); process.exit(1);
   }
